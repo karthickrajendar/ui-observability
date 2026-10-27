@@ -7,6 +7,7 @@
  */
 
 export type {
+  ActiveTraceContext,
   AppMetadata,
   Breadcrumb,
   BreadcrumbCategory,
@@ -45,8 +46,7 @@ export {
   shutdownObservability,
 } from './lib/core/api';
 
-
-export { getTracer, startSpan, withSpan } from './lib/core/tracing';
+export { getActiveTraceContext, getTracer, startSpan, withSpan } from './lib/core/tracing';
 
 export {
   ObservabilityErrorBoundary,

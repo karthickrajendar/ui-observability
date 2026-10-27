@@ -97,7 +97,15 @@ export interface TracerHandle {
   startSpan(name: string, attributes?: SpanAttributes): SpanHandle;
 }
 
+/** Vendor-neutral snapshot of the currently active W3C trace context. */
+export interface ActiveTraceContext {
+  traceId: string;
+  spanId: string;
+  traceparent: string;
+}
+
 /** Vendor-neutral snapshot of the SDK state. */
+
 export interface ObservabilityStatus {
   initialized: boolean;
   consentGranted?: boolean;

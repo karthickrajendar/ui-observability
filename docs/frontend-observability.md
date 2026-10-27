@@ -60,8 +60,9 @@ Guarantees:
 | `setView(name)` | Set normalized logical view name for modals, wizards, or micro-frontends |
 | `setUserContext({ id })` / `clearUserContext()` | Attach/detach an opaque user id |
 | `setTenantContext({ id })` / `clearTenantContext()` | Attach/detach a tenant id |
-| `getTracer()` / `startSpan()` / `withSpan()` | Vendor-neutral tracing |
+| `getTracer()` / `startSpan()` / `withSpan()` / `getActiveTraceContext()` | Vendor-neutral tracing & active W3C correlation context |
 | `ObservabilityErrorBoundary` | React error boundary that reports render errors |
+
 | `ObservableRoutes` | Drop-in `<Routes>` replacement reporting route templates |
 | `normalizeRoute(pathname)` | Convert concrete paths to low-cardinality templates |
 

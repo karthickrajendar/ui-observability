@@ -5,6 +5,7 @@ import {
   captureMessage,
   clearTenantContext,
   clearUserContext,
+  getActiveTraceContext,
   setTelemetryConsent,
   setTenantContext,
   setUserContext,
@@ -12,6 +13,7 @@ import {
   withSpan,
 } from '@company/frontend-observability';
 import { useState } from 'react';
+
 
 
 function BrokenComponent(): never {
@@ -23,6 +25,8 @@ export function TelemetryLabPage() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [consent, setConsent] = useState(true);
   const [lastAction, setLastAction] = useState('none');
+  const [lastTraceInfo, setLastTraceInfo] = useState<string | null>(null);
+
 
 
   if (renderError) {
@@ -43,7 +47,14 @@ export function TelemetryLabPage() {
       </p>
       <p className="last-action">
         Last action: <strong>{lastAction}</strong>
+        {lastTraceInfo ? (
+          <>
+            {' '}
+            | End-to-End Trace: <code>{lastTraceInfo}</code>
+          </>
+        ) : null}
       </p>
+
 
       <h2>Errors</h2>
       <div className="actions">
@@ -84,13 +95,23 @@ export function TelemetryLabPage() {
         <button
           onClick={act('traced fetch', () => {
             void withSpan('lab.echo-roundtrip', async () => {
+              const uiCtx = getActiveTraceContext();
               const response = await fetch('/api/echo?requestId=42');
-              await response.json();
+              const body = (await response.json()) as {
+                traceId?: string;
+                backendSpanId?: string;
+                receivedTraceparent?: string | null;
+              };
+              const traceId = body.traceId ?? uiCtx?.traceId ?? 'unknown';
+              setLastTraceInfo(
+                `traceId=${traceId} (UI -> demo-api span=${body.backendSpanId ?? 'n/a'})`
+              );
             });
           })}
         >
           Traced fetch to /api/echo
         </button>
+
         <button
           onClick={act('failing fetch', () => {
             void fetch('/api/does-not-exist').catch(() => undefined);

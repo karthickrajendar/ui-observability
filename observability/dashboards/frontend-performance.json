@@ -537,11 +537,12 @@
           "refId": "A",
           "datasource": { "type": "tempo", "uid": "tempo" },
           "queryType": "traceql",
-          "query": "{ resource.service.name =~ \"$app_name\" }",
+          "query": "{ resource.service.name =~ \"$app_name|demo-api\" }",
           "limit": 25,
           "tableType": "traces"
         }
       ]
+
     },
     {
       "id": 7,
