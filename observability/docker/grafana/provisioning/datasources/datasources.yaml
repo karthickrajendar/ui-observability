@@ -1,0 +1,31 @@
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: true
+    jsonData:
+      derivedFields:
+        # Faro exception/log/event lines carry trace_id=... or traceID=...; link them to Tempo.
+        - name: TraceID
+          matcherRegex: '(?:trace_id|traceID)=([0-9a-f]+)'
+          url: '$${__value.raw}'
+          datasourceUid: tempo
+
+
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    access: proxy
+    url: http://tempo:3200
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
+        filterByTraceID: true
+      nodeGraph:
+        enabled: true

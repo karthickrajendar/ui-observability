@@ -1,101 +1,98 @@
-# UiObservability
+# ui-observability
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+Production-grade frontend observability reference implementation: a React (Nx) application
+instrumented through an internal SDK built on **Grafana Faro** and **OpenTelemetry Web**,
+shipping RUM, errors, Web Vitals, and traces through **Grafana Alloy** into **Loki** and
+**Tempo**, visualized in **Grafana**.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+```text
+React demo app
+      |
+@company/frontend-observability   (the ONLY telemetry import allowed in app code)
+      |
+Faro Web SDK + OTel TracingInstrumentation
+      |
+      v  HTTP :12347
+Grafana Alloy (faro.receiver)
+      |               |
+      v               v
+    Loki            Tempo
+ (RUM/logs)        (traces)
+      \               /
+       v             v
+          Grafana :3000
+```
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/tutorials/react-monorepo-tutorial?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+## Repository layout
 
-## Run tasks
+| Path | Purpose |
+|---|---|
+| `apps/demo-app` | React demo app with a Telemetry Lab page for generating every signal |
+| `libs/frontend-observability` | The internal SDK (`@company/frontend-observability`) |
+| `observability/docker` | Local LGTM stack: Alloy, Loki, Tempo, Grafana |
+| `observability/dashboards` | Provisioned Grafana dashboards |
+| `docs/` | Telemetry contract and privacy model |
+| `scripts/verify-telemetry.mjs` | Headless-browser end-to-end verification |
 
-To run the dev server for your app, use:
+## Quickstart
 
-```sh
+Prerequisites: Node 20+, npm, Docker (Docker Desktop or colima).
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Start the observability stack (Alloy, Loki, Tempo, Grafana)
+docker compose -f observability/docker/docker-compose.yml up -d
+
+# 3. Start the demo app
 npx nx serve demo-app
 ```
 
-To create a production bundle:
+Then:
 
-```sh
-npx nx build demo-app
+- Open the app at http://localhost:4200 and use the **Telemetry Lab** page to generate
+  errors, events, traces, and Web Vitals.
+- Open Grafana at http://localhost:3000 (anonymous admin, local only). Dashboards are in
+  the **Frontend Observability** folder: *RUM Overview*, *Frontend Errors*,
+  *Frontend Performance*.
+- Explore raw signals: Loki query `{job="faro"}`, Tempo search `service.name=demo-app`.
+
+## Smoke test
+
+With the stack and dev server running:
+
+```bash
+node scripts/verify-telemetry.mjs
 ```
 
-To see all available targets to run for a project, run:
+This drives a headless Chromium through every telemetry trigger and fails on unexpected
+page errors. To prove the app survives a collector outage:
 
-```sh
-npx nx show project demo-app
+```bash
+docker stop ui-observability-alloy-1
+node scripts/verify-telemetry.mjs --outage
+docker start ui-observability-alloy-1
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+## Development
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Add new projects
-
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
-
-Use the plugin's generator to create new projects.
-
-To generate a new application, use:
-
-```sh
-npx nx g @nx/react:app demo
+```bash
+npx nx run-many -t typecheck test lint   # all checks
+npx nx test @company/frontend-observability
 ```
 
-To generate a new library, use:
+Key rules (enforced by ESLint and the SDK design):
 
-```sh
-npx nx g @nx/react:lib mylib
-```
+1. Application code never imports `@grafana/*` or `@opentelemetry/*` directly - only
+   `@company/frontend-observability`.
+2. There is exactly one tracer provider, owned by the SDK (Faro's
+   `TracingInstrumentation`).
+3. Every telemetry item passes centralized sanitization (`beforeSend`); secrets,
+   sensitive headers, and sensitive query parameters never leave the browser.
+4. Telemetry failures never break the application: initialization is non-blocking,
+   singleton-safe, Strict Mode / HMR safe, and everything no-ops when disabled.
+5. `traceparent` is only propagated to the configured first-party origin allowlist.
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
-
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Set up CI!
-
-### Step 1
-
-To connect to Nx Cloud, run the following command:
-
-```sh
-npx nx connect
-```
-
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
-
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-### Step 2
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
-```
-
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/getting-started/tutorials/react-monorepo-tutorial?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+See [docs/frontend-observability.md](docs/frontend-observability.md) for the SDK guide
+and [docs/privacy.md](docs/privacy.md) for the privacy model.

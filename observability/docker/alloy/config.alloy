@@ -1,0 +1,76 @@
+// Grafana Alloy configuration: Faro ingestion boundary for browser telemetry.
+//
+// Browser telemetry is untrusted input. Even locally this config applies a
+// CORS allowlist (never "*"), payload size limits, and rate limiting.
+// Production adds HTTPS/WAF in front plus API-key validation.
+
+faro.receiver "frontend" {
+  extra_log_labels = {
+    job    = "faro",
+    source = "frontend",
+  }
+
+  server {
+    listen_address           = "0.0.0.0"
+    listen_port              = 12347
+    cors_allowed_origins     = ["http://localhost:4200"]
+    max_allowed_payload_size = "1MiB"
+
+    rate_limiting {
+      enabled    = true
+      rate       = 100
+      burst_size = 200
+    }
+  }
+
+  output {
+    logs   = [loki.process.faro.receiver]
+    traces = [otelcol.processor.batch.default.input]
+  }
+}
+
+// Promote low-cardinality Faro fields to Loki labels so dashboards can
+// filter by signal kind, app, environment, and release.
+loki.process "faro" {
+  forward_to = [loki.write.local.receiver]
+
+  stage.logfmt {
+    mapping = {
+      "kind"            = "",
+      "app_name"        = "",
+      "app_environment" = "",
+      "app_release"     = "",
+    }
+  }
+
+  stage.labels {
+    values = {
+      "kind"            = "",
+      "app_name"        = "",
+      "app_environment" = "",
+      "app_release"     = "",
+    }
+  }
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+
+    tls {
+      insecure = true
+    }
+  }
+}

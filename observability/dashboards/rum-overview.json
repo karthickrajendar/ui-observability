@@ -1,0 +1,580 @@
+{
+  "title": "RUM Overview",
+  "uid": "rum-overview",
+  "description": "Executive Real User Monitoring overview: sessions, SLOs, Core Web Vitals, frustration signals, views, traces, and live RUM telemetry.",
+  "tags": ["frontend-observability", "rum", "lgtm"],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "graphTooltip": 1,
+  "refresh": "15s",
+  "time": { "from": "now-1h", "to": "now" },
+  "links": [
+    {
+      "title": "Frontend Observability Dashboards",
+      "type": "dashboards",
+      "tags": ["frontend-observability"],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "app_name",
+        "label": "App",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": { "type": 1, "label": "app_name", "stream": "{job=\"faro\"}" },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 2,
+        "sort": 1,
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] }
+      },
+      {
+        "name": "app_environment",
+        "label": "Environment",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": { "type": 1, "label": "app_environment", "stream": "{job=\"faro\"}" },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 2,
+        "sort": 1,
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] }
+      },
+      {
+        "name": "app_release",
+        "label": "Release",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": { "type": 1, "label": "app_release", "stream": "{job=\"faro\"}" },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 2,
+        "sort": 1,
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] }
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "name": "JS Exceptions & Chunk Failures",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "enable": true,
+        "iconColor": "rgba(245, 54, 54, 0.9)",
+        "expr": "{job=\"faro\", kind=\"exception\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt",
+        "titleFormat": "{{type}}: {{value}}",
+        "tagKeys": "app_release,context_error_type"
+      },
+      {
+        "name": "User Rage Clicks",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "enable": true,
+        "iconColor": "rgba(255, 152, 48, 0.9)",
+        "expr": "{job=\"faro\", kind=\"event\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | event_name=\"rage_click\"",
+        "titleFormat": "Rage click on {{event_data_target}}",
+        "tagKeys": "event_data_route"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 100,
+      "type": "row",
+      "title": "Executive SLOs & Real-User Health",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Active Sessions",
+      "description": "Distinct browser sessions observed in the selected time range.",
+      "gridPos": { "h": 5, "w": 3, "x": 0, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "count(sum by (session_id) (count_over_time({job=\"faro\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | session_id != `` [$__range]))) or vector(0)",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Page & View Transitions",
+      "description": "Total route_change and view_changed RUM events.",
+      "gridPos": { "h": 5, "w": 3, "x": 3, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "purple" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(count_over_time({job=\"faro\", kind=\"event\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | event_name=~\"view_changed|route_change\" [$__range])) or vector(0)",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "gauge",
+      "title": "Error-Free Sessions SLO",
+      "description": "Percentage of user sessions with zero unhandled exceptions.",
+      "gridPos": { "h": 5, "w": 4, "x": 6, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 90 },
+              { "color": "green", "value": 98 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "100 * (1 - (count(sum by (session_id) (count_over_time({job=\"faro\", kind=\"exception\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | session_id != `` [$__range]))) or vector(0)) / count(sum by (session_id) (count_over_time({job=\"faro\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | session_id != `` [$__range]))))",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "JS Exceptions",
+      "description": "Total unhandled exceptions, boundary catches, and chunk/resource errors.",
+      "gridPos": { "h": 5, "w": 3, "x": 10, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background_solid",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(count_over_time({job=\"faro\", kind=\"exception\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} [$__range])) or vector(0)",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Rage Clicks",
+      "description": "User frustration events (>=3 rapid clicks in 1s within 30px).",
+      "gridPos": { "h": 5, "w": 3, "x": 13, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(count_over_time({job=\"faro\", kind=\"event\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | event_name=\"rage_click\" [$__range])) or vector(0)",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Long Tasks (>=50ms)",
+      "description": "Main-thread blocking tasks exceeding 50ms.",
+      "gridPos": { "h": 5, "w": 3, "x": 16, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(count_over_time({job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | type=\"longtask\" [$__range])) or vector(0)",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "LCP p75",
+      "description": "Largest Contentful Paint 75th percentile (Good < 2.5s).",
+      "gridPos": { "h": 5, "w": 3, "x": 19, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2500 },
+              { "color": "red", "value": 4000 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | unwrap value_lcp | __error__=`` [$__range])",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "INP p75",
+      "description": "Interaction to Next Paint 75th percentile (Good < 200ms).",
+      "gridPos": { "h": 5, "w": 2, "x": 22, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 200 },
+              { "color": "red", "value": 500 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | unwrap value_inp | __error__=`` [$__range])",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 101,
+      "type": "row",
+      "title": "Signal Volume, Errors & Frustration Trends",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Telemetry Ingestion Volume by Signal Kind",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "showPoints": "never",
+            "stacking": { "mode": "normal", "group": "A" }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum by (kind) (count_over_time({job=\"faro\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} [$__auto]))",
+          "queryType": "range",
+          "legendFormat": "{{kind}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Exceptions, Chunk Errors & Rage Clicks Over Time",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "stacking": { "mode": "normal", "group": "A" }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "exceptions" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "rage_clicks" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "long_tasks" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(count_over_time({job=\"faro\", kind=\"exception\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} [$__auto]))",
+          "queryType": "range",
+          "legendFormat": "exceptions"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(count_over_time({job=\"faro\", kind=\"event\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | event_name=\"rage_click\" [$__auto]))",
+          "queryType": "range",
+          "legendFormat": "rage_clicks"
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(count_over_time({job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | type=\"longtask\" [$__auto]))",
+          "queryType": "range",
+          "legendFormat": "long_tasks"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "type": "row",
+      "title": "User Journey, Custom Events & Multi-Tenant Segmentation",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "RUM Events & User Actions by Event Name",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum", "lastNotNull"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum by (event_name) (count_over_time({job=\"faro\", kind=\"event\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | event_name != `` [$__auto]))",
+          "queryType": "range",
+          "legendFormat": "{{event_name}}"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "table",
+      "title": "Active Logical Views, Tenants & Releases",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Events" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "gradient" } },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "blue", "value": null },
+                    { "color": "green", "value": 10 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "topk(10, sum by (view_name, session_attr_tenant_id, app_release) (count_over_time({job=\"faro\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt [$__range])))",
+          "queryType": "instant"
+        }
+      ],
+      "transformations": [
+        { "id": "labelsToFields", "options": {} },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": {
+              "view_name": "Logical View",
+              "session_attr_tenant_id": "Tenant",
+              "app_release": "Release",
+              "Value": "Events"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "type": "row",
+      "title": "Live RUM & Distributed Trace Stream",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 }
+    },
+    {
+      "id": 9,
+      "type": "logs",
+      "title": "Live RUM Stream (Click TraceID badge to open distributed trace in Tempo)",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 25 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{job=\"faro\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"}",
+          "queryType": "range"
+        }
+      ]
+    }
+  ]
+}

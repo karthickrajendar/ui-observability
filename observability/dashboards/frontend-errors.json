@@ -1,0 +1,474 @@
+{
+  "title": "Frontend Errors",
+  "uid": "frontend-errors",
+  "description": "Production error triage: exceptions by release, chunk/resource/error-boundary breakdowns, connectivity & tab visibility state, breadcrumb trails, and application log severity.",
+  "tags": ["frontend-observability", "errors", "lgtm"],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "graphTooltip": 1,
+  "refresh": "15s",
+  "time": { "from": "now-1h", "to": "now" },
+  "links": [
+    {
+      "title": "Frontend Observability Dashboards",
+      "type": "dashboards",
+      "tags": ["frontend-observability"],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "app_name",
+        "label": "App",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": { "type": 1, "label": "app_name", "stream": "{job=\"faro\"}" },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 2,
+        "sort": 1,
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] }
+      },
+      {
+        "name": "app_environment",
+        "label": "Environment",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": { "type": 1, "label": "app_environment", "stream": "{job=\"faro\"}" },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 2,
+        "sort": 1,
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] }
+      },
+      {
+        "name": "app_release",
+        "label": "Release",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": { "type": 1, "label": "app_release", "stream": "{job=\"faro\"}" },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 2,
+        "sort": 1,
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 100,
+      "type": "row",
+      "title": "Error Summary KPIs",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Total Exceptions",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background_solid", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(count_over_time({job=\"faro\", kind=\"exception\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} [$__range])) or vector(0)",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Impacted Sessions",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "count(sum by (session_id) (count_over_time({job=\"faro\", kind=\"exception\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | session_id != `` [$__range]))) or vector(0)",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Chunk & Resource Failures",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(count_over_time({job=\"faro\", kind=\"exception\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | context_error_type=~\"chunk_load|resource_load\" [$__range])) or vector(0)",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "React Error Boundary Catches",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(count_over_time({job=\"faro\", kind=\"exception\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | context_source=\"react-error-boundary\" [$__range])) or vector(0)",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 101,
+      "type": "row",
+      "title": "Release Regressions, Client Context & Log Severity",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }
+    },
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Errors by Release",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum by (app_release) (count_over_time({job=\"faro\", kind=\"exception\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} [$__auto]))",
+          "queryType": "range",
+          "legendFormat": "{{app_release}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Chunk, Resource & React Error Boundary Failures",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "stacking": { "mode": "normal", "group": "A" }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum by (context_error_type, context_source) (count_over_time({job=\"faro\", kind=\"exception\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | context_error_type=~\"chunk_load|resource_load\" or context_source=\"react-error-boundary\" [$__auto]))",
+          "queryType": "range",
+          "legendFormat": "{{context_error_type}} {{context_source}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Errors by Connectivity (online / 4g) & Tab Visibility State",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum by (context_online, context_connection_type, context_visibility_state) (count_over_time({job=\"faro\", kind=\"exception\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt [$__auto]))",
+          "queryType": "range",
+          "legendFormat": "online={{context_online}} net={{context_connection_type}} tab={{context_visibility_state}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Application Logs by Severity Level (info / warn / error / log)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 75,
+            "stacking": { "mode": "normal", "group": "A" }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "error" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "warn" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "info" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum by (level) (count_over_time({job=\"faro\", kind=\"log\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt [$__auto]))",
+          "queryType": "range",
+          "legendFormat": "{{level}}"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "type": "row",
+      "title": "Top Error Fingerprints, Breadcrumb Trails & Affected Dimensions",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 }
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Top Error Messages & Preceding Breadcrumb Trails",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Count" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "gradient" } },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "orange", "value": null },
+                    { "color": "red", "value": 5 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "topk(10, sum by (type, value, context_breadcrumbs, context_online) (count_over_time({job=\"faro\", kind=\"exception\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt [$__range])))",
+          "queryType": "instant"
+        }
+      ],
+      "transformations": [
+        { "id": "labelsToFields", "options": {} },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": {
+              "type": "Error type",
+              "value": "Message",
+              "context_breadcrumbs": "Breadcrumbs",
+              "context_online": "Online",
+              "Value": "Count"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Errors by Sanitized Page URL",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 23 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "topk(10, sum by (page_url) (count_over_time({job=\"faro\", kind=\"exception\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt [$__range])))",
+          "queryType": "instant"
+        }
+      ],
+      "transformations": [
+        { "id": "labelsToFields", "options": {} },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": { "page_url": "Page", "Value": "Count" }
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Errors by Browser & OS",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 23 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "topk(10, sum by (browser_name, browser_version, browser_os) (count_over_time({job=\"faro\", kind=\"exception\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt [$__range])))",
+          "queryType": "instant"
+        }
+      ],
+      "transformations": [
+        { "id": "labelsToFields", "options": {} },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": {
+              "browser_name": "Browser",
+              "browser_version": "Version",
+              "browser_os": "OS",
+              "Value": "Count"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "type": "row",
+      "title": "Detailed Exception & Application Log Inspector",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 }
+    },
+    {
+      "id": 6,
+      "type": "logs",
+      "title": "Exception & Warning Stream (Stack traces, Component stacks, Breadcrumbs & Tempo TraceID links)",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 32 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{job=\"faro\", kind=~\"exception|log\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"}",
+          "queryType": "range"
+        }
+      ]
+    }
+  ]
+}

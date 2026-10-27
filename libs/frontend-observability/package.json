@@ -1,0 +1,23 @@
+{
+  "name": "@company/frontend-observability",
+  "version": "0.0.1",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@grafana/faro-react": "^2.10.0",
+    "@grafana/faro-web-sdk": "^2.10.0",
+    "@grafana/faro-web-tracing": "^2.10.0"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-router-dom": ">=6"
+  }
+}

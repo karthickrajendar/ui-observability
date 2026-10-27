@@ -1,27 +1,45 @@
 /// <reference types='vitest' />
 import { defineConfig } from 'vite';
+import type { Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+
+/**
+ * Tiny same-origin echo API so the demo can produce real fetch spans with
+ * traceparent propagation without needing a backend service.
+ */
+function echoApiPlugin(): Plugin {
+  return {
+    name: 'demo-echo-api',
+    configureServer(server) {
+      server.middlewares.use('/api/echo', (req, res) => {
+        const traceparent = req.headers['traceparent'] ?? null;
+        setTimeout(() => {
+          res.setHeader('content-type', 'application/json');
+          res.end(JSON.stringify({ ok: true, receivedTraceparent: traceparent, ts: Date.now() }));
+        }, 120);
+      });
+    },
+  };
+}
 
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/apps/demo-app',
-  server:{
+  server: {
     port: 4200,
     host: 'localhost',
   },
-  preview:{
+  preview: {
     port: 4300,
     host: 'localhost',
   },
-  plugins: [react()],
-  // Uncomment this if you are using workers.
-  // worker: {
-  //  plugins: [],
-  // },
+  plugins: [react(), echoApiPlugin()],
   build: {
     outDir: './dist',
     emptyOutDir: true,
     reportCompressedSize: true,
+    // Source maps stay on the server side; never expose them publicly in production.
+    sourcemap: true,
     commonjsOptions: {
       transformMixedEsModules: true,
     },
@@ -36,6 +54,6 @@ export default defineConfig(() => ({
     coverage: {
       reportsDirectory: './test-output/vitest/coverage',
       provider: 'v8' as const,
-    }
+    },
   },
 }));

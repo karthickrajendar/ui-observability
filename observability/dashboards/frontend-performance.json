@@ -1,0 +1,568 @@
+{
+  "title": "Frontend Performance",
+  "uid": "frontend-performance",
+  "description": "Core Web Vitals (LCP, INP, CLS, FCP, TTFB), Main-Thread Long Tasks, Custom Domain SLIs, Fetch Latency, and OpenTelemetry Distributed Traces in Tempo.",
+  "tags": ["frontend-observability", "performance", "lgtm"],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "graphTooltip": 1,
+  "refresh": "15s",
+  "time": { "from": "now-1h", "to": "now" },
+  "links": [
+    {
+      "title": "Frontend Observability Dashboards",
+      "type": "dashboards",
+      "tags": ["frontend-observability"],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "app_name",
+        "label": "App",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": { "type": 1, "label": "app_name", "stream": "{job=\"faro\"}" },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 2,
+        "sort": 1,
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] }
+      },
+      {
+        "name": "app_environment",
+        "label": "Environment",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": { "type": 1, "label": "app_environment", "stream": "{job=\"faro\"}" },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 2,
+        "sort": 1,
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] }
+      },
+      {
+        "name": "app_release",
+        "label": "Release",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": { "type": 1, "label": "app_release", "stream": "{job=\"faro\"}" },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 2,
+        "sort": 1,
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 100,
+      "type": "row",
+      "title": "Core Web Vitals Scorecards (p75 Google Thresholds)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "id": 20,
+      "type": "gauge",
+      "title": "LCP p75 (Good < 2500ms)",
+      "gridPos": { "h": 5, "w": 5, "x": 0, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "min": 0,
+          "max": 5000,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2500 },
+              { "color": "red", "value": 4000 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "showThresholdMarkers": true, "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | unwrap value_lcp | __error__=`` [$__range])",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "gauge",
+      "title": "INP p75 (Good < 200ms)",
+      "gridPos": { "h": 5, "w": 5, "x": 5, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "min": 0,
+          "max": 600,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 200 },
+              { "color": "red", "value": 500 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "showThresholdMarkers": true, "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | unwrap value_inp | __error__=`` [$__range])",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "type": "gauge",
+      "title": "CLS p75 (Good < 0.1)",
+      "gridPos": { "h": 5, "w": 4, "x": 10, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 0.5,
+          "decimals": 3,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "red", "value": 0.25 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "showThresholdMarkers": true, "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | unwrap value_cls | __error__=`` [$__range])",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "type": "gauge",
+      "title": "FCP p75 (Good < 1800ms)",
+      "gridPos": { "h": 5, "w": 5, "x": 14, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "min": 0,
+          "max": 4000,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1800 },
+              { "color": "red", "value": 3000 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "showThresholdMarkers": true, "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | unwrap value_fcp | __error__=`` [$__range])",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "type": "gauge",
+      "title": "TTFB p75 (Good < 800ms)",
+      "gridPos": { "h": 5, "w": 5, "x": 19, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "min": 0,
+          "max": 2500,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 800 },
+              { "color": "red", "value": 1800 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "showThresholdMarkers": true, "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | unwrap value_ttfb | __error__=`` [$__range])",
+          "queryType": "instant"
+        }
+      ]
+    },
+    {
+      "id": 101,
+      "type": "row",
+      "title": "Core Web Vitals & Main-Thread Responsiveness Over Time",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 }
+    },
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "LCP p75 (ms)",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 7 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | unwrap value_lcp | __error__=`` [$__auto]) by (app_name)",
+          "queryType": "range",
+          "legendFormat": "{{app_name}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "INP p75 (ms)",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 7 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | unwrap value_inp | __error__=`` [$__auto]) by (app_name)",
+          "queryType": "range",
+          "legendFormat": "{{app_name}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "CLS p75",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 7 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | unwrap value_cls | __error__=`` [$__auto]) by (app_name)",
+          "queryType": "range",
+          "legendFormat": "{{app_name}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "FCP p75 (ms)",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 15 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | unwrap value_fcp | __error__=`` [$__auto]) by (app_name)",
+          "queryType": "range",
+          "legendFormat": "{{app_name}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "TTFB p75 (ms)",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 15 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | unwrap value_ttfb | __error__=`` [$__auto]) by (app_name)",
+          "queryType": "range",
+          "legendFormat": "{{app_name}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Long Tasks p75 Duration (ms) by Route",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 15 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | type=\"longtask\" | unwrap value_duration_ms | __error__=`` [$__auto]) by (context_route)",
+          "queryType": "range",
+          "legendFormat": "{{context_route}}"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "type": "row",
+      "title": "Custom Application SLIs, Fetch Latency & Route Transitions",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Custom SLI Measurements p75 (ms)",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | type!=\"web-vitals\" | type!=\"longtask\" | unwrap value_duration_ms | __error__=`` [$__auto]) by (type, context_step)",
+          "queryType": "range",
+          "legendFormat": "{{type}} ({{context_step}})"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Traced Fetch Latency p75 (ns) by URL & Status",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 24 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ns",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "quantile_over_time(0.75, {job=\"faro\", kind=\"event\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | event_name=\"faro.tracing.fetch\" | unwrap event_data_duration_ns | __error__=`` [$__auto]) by (event_data_url_full, event_data_http_response_status_code)",
+          "queryType": "range",
+          "legendFormat": "{{event_data_url_full}} [{{event_data_http_response_status_code}}]"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Route & Logical View Changes",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 24 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 75,
+            "stacking": { "mode": "normal", "group": "A" }
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["sum"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum by (event_data_toRoute, event_data_toView) (count_over_time({job=\"faro\", kind=\"event\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"} | logfmt | event_name=~\"route_change|view_changed\" [$__auto]))",
+          "queryType": "range",
+          "legendFormat": "{{event_data_toRoute}}{{event_data_toView}}"
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "type": "row",
+      "title": "OpenTelemetry Distributed Traces (Tempo) & Raw Performance Stream",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 }
+    },
+    {
+      "id": 25,
+      "type": "table",
+      "title": "Recent Frontend Distributed Traces (Tempo TraceQL)",
+      "description": "Click any Trace ID to open the full waterfall span view in Tempo.",
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 33 },
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{ resource.service.name =~ \"$app_name\" }",
+          "limit": 25,
+          "tableType": "traces"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "logs",
+      "title": "Raw Measurements (Web Vitals, Long Tasks & Custom SLIs)",
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 33 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{job=\"faro\", kind=\"measurement\", app_name=~\"$app_name\", app_environment=~\"$app_environment\", app_release=~\"$app_release\"}",
+          "queryType": "range"
+        }
+      ]
+    }
+  ]
+}

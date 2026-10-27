@@ -1,1 +1,108 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color-scheme: light dark;
+  --accent: #ff671d;
+  --border: color-mix(in srgb, currentColor 18%, transparent);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.shell {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 1.25rem 4rem;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2rem;
+}
+
+.brand {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.topbar nav {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.topbar a {
+  color: inherit;
+  text-decoration: none;
+  opacity: 0.75;
+}
+
+.topbar a.active {
+  opacity: 1;
+  font-weight: 600;
+  border-bottom: 2px solid var(--accent);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.5rem 0 1.5rem;
+}
+
+button {
+  font: inherit;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.status {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.status dt {
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.status dd {
+  margin: 0;
+}
+
+.error-fallback {
+  border: 1px solid #d64545;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+
+.error-fallback pre {
+  white-space: pre-wrap;
+  opacity: 0.8;
+}
+
+code,
+pre {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.92em;
+}

@@ -1,45 +1,48 @@
-// Uncomment this line to use CSS modules
-// import styles from './app.module.css';
-import NxWelcome from "./nx-welcome";
+import { ObservabilityErrorBoundary, ObservableRoutes } from '@company/frontend-observability';
+import { Link, NavLink, Route, useLocation } from 'react-router-dom';
 
-import { Route, Routes, Link } from 'react-router-dom';
+import { HomePage } from '../pages/home';
+import { OrderDetailPage, OrdersPage } from '../pages/orders';
+import { TelemetryLabPage } from '../pages/telemetry-lab';
+
+function ErrorFallback(error: Error) {
+  return (
+    <div className="error-fallback">
+      <h2>Something went wrong</h2>
+      <p>The error was reported to the observability platform.</p>
+      <pre>{error.message}</pre>
+      <Link to="/">Back to home</Link>
+    </div>
+  );
+}
 
 export function App() {
+  // Keying the boundary on the path lets navigation recover from render errors.
+  const location = useLocation();
   return (
-    <div>
-      <NxWelcome title="@ui-observability/demo-app"/>
-    
-    {/* START: routes */}
-    {/* These routes and navigation have been generated for you */}
-    {/* Feel free to move and update them to fit your needs */}
-    <br/>
-    <hr/>
-    <br/>
-    <div role="navigation">
-      <ul>
-        <li><Link to="/">Home</Link></li>
-        <li><Link to="/page-2">Page 2</Link></li>
-      </ul>
-    </div>
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <div>This is the generated root route. <Link to="/page-2">Click here for page 2.</Link></div>
-        }
-      />
-      <Route
-        path="/page-2"
-        element={
-          <div><Link to="/">Click here to go back to root page.</Link></div>
-        }
-      />
-    </Routes>
-    {/* END: routes */}
+    <div className="shell">
+      <header className="topbar">
+        <span className="brand">demo-app</span>
+        <nav>
+          <NavLink to="/" end>
+            Home
+          </NavLink>
+          <NavLink to="/orders">Orders</NavLink>
+          <NavLink to="/lab">Telemetry Lab</NavLink>
+        </nav>
+      </header>
+      <main>
+        <ObservabilityErrorBoundary key={location.pathname} fallback={ErrorFallback}>
+          <ObservableRoutes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/orders/:orderId" element={<OrderDetailPage />} />
+            <Route path="/lab" element={<TelemetryLabPage />} />
+          </ObservableRoutes>
+        </ObservabilityErrorBoundary>
+      </main>
     </div>
   );
 }
 
 export default App;
-
-
