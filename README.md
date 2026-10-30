@@ -75,6 +75,21 @@ node scripts/verify-telemetry.mjs --outage
 docker start ui-observability-alloy-1
 ```
 
+## Pulse dashboard
+
+Run the custom Nx/React dashboard against the same local telemetry stack:
+
+```bash
+npm run dev
+```
+
+Open **http://localhost:4201** for RUM, frontend errors, metrics, editable dashboards,
+and distributed trace drilldowns. The API runs on port 4202. Keep the Docker stack
+and instrumented demo app running to generate live data.
+
+See [the dashboard guide](docs/observability-dashboard.md) for configuration, saved
+dashboards, data semantics, builds, and browser verification.
+
 ## Development
 
 ```bash

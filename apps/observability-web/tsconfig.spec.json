@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "out-tsc/vitest/tsconfig.spec.tsbuildinfo",
+    "rootDir": ".",
+    "outDir": "out-tsc/vitest",
+    "types": ["vitest/globals", "node", "vite/client"]
+  },
+  "include": ["src/**/*.spec.ts", "src/**/*.spec.tsx", "vite.config.mts"],
+  "exclude": [],
+  "references": [{ "path": "./tsconfig.app.json" }]
+}

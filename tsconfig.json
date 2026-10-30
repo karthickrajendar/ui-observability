@@ -3,6 +3,9 @@
   "compileOnSave": false,
   "files": [],
   "references": [
+    { "path": "./apps/observability-web" },
+    { "path": "./apps/observability-api" },
+    { "path": "./libs/observability-contracts" },
     {
       "path": "./apps/demo-app"
     },

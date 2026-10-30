@@ -18,6 +18,7 @@ import { getBrowserContextAttributes, installRumObservers } from '../rum/observe
 import { normalizeRoute } from '../rum/routes';
 import { shouldSample } from '../sampling/sampling';
 import { getState } from './state';
+import { getActiveTraceContext } from './tracing';
 
 const TENANT_ATTRIBUTE = 'tenant_id';
 const MAX_BREADCRUMBS = 20;
@@ -293,13 +294,18 @@ export function captureError(error: unknown, context?: CaptureContext): void {
   try {
     const allowQuery = getAllowQueryParameters();
     const trail = formatRecentBreadcrumbs(state.breadcrumbs);
+    const activeTrace = getActiveTraceContext();
     const mergedAttributes: Record<string, unknown> = {
       ...getBrowserContextAttributes(),
       ...(trail ? { breadcrumbs: trail } : {}),
       ...context?.attributes,
+      // The pinned Alloy receiver can omit native exception trace fields.
+      // Mirror correlation IDs into sanitized context, never indexed labels.
+      ...(activeTrace ? { trace_id: activeTrace.traceId, span_id: activeTrace.spanId } : {}),
     };
     state.faro.api.pushError(toError(error), {
       context: sanitizeAttributes(mergedAttributes, allowQuery),
+      ...(activeTrace ? { spanContext: { traceId: activeTrace.traceId, spanId: activeTrace.spanId } } : {}),
     });
   } catch (pushFailure) {
     debugWarn('captureError failed', pushFailure);

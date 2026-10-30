@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => {
     pushEvent: vi.fn(),
     pushMeasurement: vi.fn(),
     getOTEL: vi.fn(() => undefined),
+    getTraceContext: vi.fn(() => undefined as { trace_id: string; span_id: string } | undefined),
   };
   const faro = { api, pause: vi.fn(), unpause: vi.fn() };
   return { api, faro, createFaroInstance: vi.fn(() => faro) };
@@ -52,6 +53,19 @@ describe('core api', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('explicitly associates captured errors with the active trace', () => {
+    initializeObservability(createTestConfig());
+    mocks.api.getTraceContext.mockReturnValueOnce({
+      trace_id: '4bf92f3577b34da6a3ce929d0e0e4736',
+      span_id: '00f067aa0ba902b7',
+    });
+    captureError(new Error('correlated failure'));
+    expect(mocks.api.pushError).toHaveBeenCalledWith(expect.any(Error), expect.objectContaining({
+      spanContext: { traceId: '4bf92f3577b34da6a3ce929d0e0e4736', spanId: '00f067aa0ba902b7' },
+      context: expect.objectContaining({ trace_id: '4bf92f3577b34da6a3ce929d0e0e4736', span_id: '00f067aa0ba902b7' }),
+    }));
   });
 
   it('initializes exactly once even when called repeatedly (Strict Mode / HMR)', () => {

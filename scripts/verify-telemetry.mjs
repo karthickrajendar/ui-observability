@@ -13,7 +13,7 @@ const outageMode = process.argv.includes('--outage');
 const BASE = 'http://localhost:4200';
 
 const pageErrors = [];
-const browser = await chromium.launch();
+const browser = await chromium.launch({ channel: process.argv.includes('--chrome') ? 'chrome' : undefined });
 const page = await browser.newPage();
 
 // "Deliberate" errors are intentional triggers; anything else is a real bug.

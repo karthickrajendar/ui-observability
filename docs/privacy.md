@@ -81,3 +81,11 @@ Privacy behavior is proven by unit tests in
 - measurement and trace sampling cannot bypass the sanitization gate
 
 New telemetry attributes require a privacy review before shipping.
+
+The dashboard adds the existing, non-personal release identifier as the
+`app.release` trace resource attribute so RUM and trace release filters agree.
+It uses the same release builder as Faro metadata and passes through the existing
+trace sanitization gate. It adds no user fields, request bodies, or identity labels.
+
+Captured errors also retain existing active trace/span IDs in sanitized context for
+compatibility with the pinned receiver. These correlation fields are not indexed labels.

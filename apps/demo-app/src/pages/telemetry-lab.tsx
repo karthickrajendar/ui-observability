@@ -1,6 +1,7 @@
 import {
   addBreadcrumb,
   captureEvent,
+  captureError,
   captureMeasurement,
   captureMessage,
   clearTenantContext,
@@ -92,6 +93,17 @@ export function TelemetryLabPage() {
 
       <h2>Network and traces</h2>
       <div className="actions">
+        <button
+          onClick={act('traced error', () => {
+            void withSpan('lab.correlated-error', () => {
+              const trace = getActiveTraceContext();
+              setLastTraceInfo(trace ? 'traceId=' + trace.traceId : 'No active trace context');
+              captureError(new Error('Deliberate traced error from the Telemetry Lab'));
+            });
+          })}
+        >
+          Capture error with trace context
+        </button>
         <button
           onClick={act('traced fetch', () => {
             void withSpan('lab.echo-roundtrip', async () => {

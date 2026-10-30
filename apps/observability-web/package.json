@@ -1,0 +1,12 @@
+{
+  "name": "@ui-observability/web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@ui-observability/contracts": "0.0.1"
+  },
+  "nx": {
+    "name": "observability-web"
+  }
+}

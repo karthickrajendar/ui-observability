@@ -41,6 +41,9 @@ function buildInstrumentations(config: ObservabilityConfig): Instrumentation[] {
   if (features.tracing) {
     instrumentations.push(
       new TracingInstrumentation({
+        resourceAttributes: {
+          'app.release': buildRelease(config.app),
+        },
         instrumentationOptions: {
           propagateTraceHeaderCorsUrls: config.tracePropagation.allowedOrigins,
         },
